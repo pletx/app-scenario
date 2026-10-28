@@ -893,8 +893,164 @@ if(play)audio.play().catch(()=>{$('storyAudioName').textContent=(storyboardData(
 else audio.pause();
 }
 function formatAnimaticTime(seconds){const minutes=Math.floor(seconds/60),remaining=(seconds-minutes*60).toFixed(1).padStart(4,'0');return minutes+':'+remaining}
+const TOPMAP_TOOLS=[['select','Sélection'],['arrow','Marche'],['run','Course'],['sneak','Furtif'],['curve','Trajectoire courbe'],['double','Aller-retour'],['line','Trait simple'],['x','Croix'],['ring','Zone'],['star','Point d’intérêt']];
+const TOPMAP_LINES=['arrow','run','sneak','curve','double','line'];
+let storySubtab='cases';
+const topmapUI={sequenceId:null,tool:'select',selected:null};
+function topmapStore(){return S.topmaps||(S.topmaps={})}
+function topmapFor(id){const store=topmapStore();return store[id]||(store[id]={image:'',ratio:.5625,tokens:[],marks:[]})}
+function topmapItem(map){const selected=topmapUI.selected;if(!selected)return null;return(selected.kind==='token'?map.tokens:map.marks).find(item=>item.id===selected.id)||null}
+function topmapColor(item,fallback){if(/^#[0-9a-f]{6}$/i.test(item.color||''))return item.color;const character=characters().find(entry=>entry.id===item.characterId);return character?radarColor(character):fallback}
+function topmapPoint(event){const rect=$('topmapSvg').getBoundingClientRect();return{x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height))}}
+function topmapHead(x,y,angle,size,color){const a=[x-size*Math.cos(angle-.5),y-size*Math.sin(angle-.5)],b=[x-size*Math.cos(angle+.5),y-size*Math.sin(angle+.5)];return`<polygon points='${x},${y} ${a.join(',')} ${b.join(',')}' fill='${color}'/>`}
+function topmapLabel(text,x,y){return text?`<text x='${x}' y='${y}' text-anchor='middle' font-size='22' font-weight='700' font-family='Arial,sans-serif' fill='#ffffff' stroke='#000000' stroke-width='5' paint-order='stroke'>${htmlEscape(text)}</text>`:''}
+function topmapCurveDefault(mark,map){
+if(mark.type!=='curve')return;
+const dx=mark.x2-mark.x1,dy=(mark.y2-mark.y1)*map.ratio;
+mark.cx=(mark.x1+mark.x2)/2-dy*.25;mark.cy=(mark.y1+mark.y2)/2+dx*.25/map.ratio;
+}
+function topmapMarkSvg(mark,W,H){
+const color=topmapColor(mark,'#ffd23f'),x1=mark.x1*W,y1=mark.y1*H,x2=(mark.x2??mark.x1)*W,y2=(mark.y2??mark.y1)*H,attrs=`data-kind='mark' data-id='${htmlEscape(mark.id)}' class='topmap-item'`;
+if(TOPMAP_LINES.includes(mark.type)){
+const cx=(mark.cx??(mark.x1+mark.x2)/2)*W,cy=(mark.cy??(mark.y1+mark.y2)/2)*H,curve=mark.type==='curve',path=curve?`M${x1},${y1} Q${cx},${cy} ${x2},${y2}`:`M${x1},${y1} L${x2},${y2}`;
+const endAngle=curve?Math.atan2(y2-cy,x2-cx):Math.atan2(y2-y1,x2-x1),startAngle=curve?Math.atan2(y1-cy,x1-cx):Math.atan2(y1-y2,x1-x2),headSize=mark.type==='run'?36:24,width=mark.type==='run'?11:6;
+let body=`<path d='${path}' fill='none' stroke='#000000' stroke-opacity='0' stroke-width='30'/><path d='${path}' fill='none' stroke='${color}' stroke-width='${width}' stroke-linecap='round'${mark.type==='sneak'?" stroke-dasharray='14 10'":''}/>`;
+if(mark.type!=='line')body+=topmapHead(x2,y2,endAngle,headSize,color);
+if(mark.type==='double')body+=topmapHead(x1,y1,startAngle,headSize,color);
+const lx=curve?.25*x1+.5*cx+.25*x2:(x1+x2)/2,ly=curve?.25*y1+.5*cy+.25*y2:(y1+y2)/2;
+return`<g ${attrs}>${body}${topmapLabel(mark.label,lx,ly-16)}</g>`;
+}
+let body='',reach=30;
+if(mark.type==='x'){const s=(mark.size||.03)*W;reach=s*1.4;body=`<path d='M${x1-s},${y1-s} L${x1+s},${y1+s} M${x1+s},${y1-s} L${x1-s},${y1+s}' stroke='${color}' stroke-width='8' stroke-linecap='round'/>`}
+else if(mark.type==='ring'){const r=(mark.size||.06)*W;reach=r;body=`<circle cx='${x1}' cy='${y1}' r='${r}' fill='${color}' fill-opacity='.14' stroke='${color}' stroke-width='5' stroke-dasharray='12 8'/>`}
+else{const r=(mark.size||.035)*W;reach=r;body=`<polygon points='${Array.from({length:10},(_,i)=>{const radius=i%2?r*.45:r,angle=-Math.PI/2+i*Math.PI/5;return(x1+Math.cos(angle)*radius).toFixed(1)+','+(y1+Math.sin(angle)*radius).toFixed(1)}).join(' ')}' fill='${color}' stroke='#ffffff' stroke-width='3'/>`}
+return`<g ${attrs}><circle cx='${x1}' cy='${y1}' r='${reach}' fill='#000000' fill-opacity='0'/>${body}${topmapLabel(mark.label,x1,y1+reach+22)}</g>`;
+}
+function topmapTokenSvg(token,W,H){
+const character=characters().find(entry=>entry.id===token.characterId),color=topmapColor(token,'#cccccc'),x=token.x*W,y=token.y*H,initials=(character?.name||'?').trim().slice(0,2).toUpperCase();
+return`<g data-kind='token' data-id='${htmlEscape(token.id)}' class='topmap-item'><circle cx='${x}' cy='${y}' r='26' fill='${color}' stroke='#ffffff' stroke-width='4'/><text x='${x}' y='${y+7}' text-anchor='middle' font-size='20' font-weight='700' font-family='Arial,sans-serif' fill='#ffffff' stroke='#000000' stroke-width='3' paint-order='stroke' pointer-events='none'>${htmlEscape(initials)}</text>${topmapLabel(token.label||character?.name||'',x,y+52)}</g>`;
+}
+function drawTopmap(){
+const map=topmapFor(topmapUI.sequenceId),svg=$('topmapSvg'),W=1000,H=Math.round(W*map.ratio);
+svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+let markup=`<rect width='${W}' height='${H}' fill='#2a2830'/>`;
+if(String(map.image||'').startsWith('data:image/'))markup+=`<image href='${map.image}' x='0' y='0' width='${W}' height='${H}' preserveAspectRatio='none'/>`;
+else markup+=`<text x='${W/2}' y='${H/2}' text-anchor='middle' font-size='26' font-family='Arial,sans-serif' fill='#aaaaaa'>Importe une carte pour cette séquence</text>`;
+map.marks.forEach(mark=>{markup+=topmapMarkSvg(mark,W,H)});
+map.tokens.forEach(token=>{markup+=topmapTokenSvg(token,W,H)});
+const selected=topmapItem(map);
+if(selected&&topmapUI.selected.kind==='token')markup+=`<circle class='topmap-handle' cx='${selected.x*W}' cy='${selected.y*H}' r='34' fill='none' stroke='#ffffff' stroke-width='3' stroke-dasharray='6 5' pointer-events='none'/>`;
+else if(selected){
+const handle=(name,x,y)=>`<circle class='topmap-handle' data-handle='${name}' cx='${x*W}' cy='${y*H}' r='11' fill='#ffffff' stroke='#111111' stroke-width='3'/>`;
+markup+=handle('p1',selected.x1,selected.y1);
+if(TOPMAP_LINES.includes(selected.type)){markup+=handle('p2',selected.x2,selected.y2);if(selected.type==='curve')markup+=handle('c',selected.cx,selected.cy)}
+}
+svg.innerHTML=markup;
+svg.onpointerdown=startTopmapPointer;
+}
+function startTopmapPointer(event){
+event.preventDefault();
+const map=topmapFor(topmapUI.sequenceId),point=topmapPoint(event),tool=topmapUI.tool;
+if(tool!=='select'){
+const mark={id:uid(),type:tool,x1:point.x,y1:point.y,characterId:'',color:'',label:''};
+map.marks.push(mark);topmapUI.selected={kind:'mark',id:mark.id};topmapUI.tool='select';
+if(!TOPMAP_LINES.includes(tool)){save();renderTopmap();return}
+mark.x2=point.x;mark.y2=point.y;
+drag(move=>{const p=topmapPoint(move);mark.x2=p.x;mark.y2=p.y;topmapCurveDefault(mark,map);drawTopmap()},()=>{if(Math.hypot(mark.x2-mark.x1,(mark.y2-mark.y1)*map.ratio)<.02){map.marks=map.marks.filter(item=>item.id!==mark.id);topmapUI.selected=null}save();renderTopmap()});
+return;
+}
+const handle=event.target.dataset.handle,hit=event.target.closest('[data-kind]');
+if(handle){
+const mark=topmapItem(map);if(!mark)return;
+drag(move=>{const p=topmapPoint(move);if(handle==='p1'){mark.x1=p.x;mark.y1=p.y}else if(handle==='p2'){mark.x2=p.x;mark.y2=p.y}else{mark.cx=p.x;mark.cy=p.y}drawTopmap()},save);
+return;
+}
+if(hit){
+topmapUI.selected={kind:hit.dataset.kind,id:hit.dataset.id};
+const item=topmapItem(map);drawTopmap();renderTopmapInspector();if(!item)return;
+const origin={...item},clamp=value=>Math.max(0,Math.min(1,value));
+drag(move=>{const p=topmapPoint(move),dx=p.x-point.x,dy=p.y-point.y;
+if(topmapUI.selected.kind==='token'){item.x=clamp(origin.x+dx);item.y=clamp(origin.y+dy)}
+else{['x1','x2','cx'].forEach(key=>{if(origin[key]!==undefined)item[key]=clamp(origin[key]+dx)});['y1','y2','cy'].forEach(key=>{if(origin[key]!==undefined)item[key]=clamp(origin[key]+dy)})}
+drawTopmap()},save);
+return;
+}
+topmapUI.selected=null;drawTopmap();renderTopmapInspector();
+}
+function renderTopmapInspector(){
+const map=topmapFor(topmapUI.sequenceId),item=topmapItem(map),box=$('topmapInspector');box.innerHTML='';
+if(!item){const hint=document.createElement('p');hint.className='character-note';hint.textContent='Ajoute un personnage ou choisis un outil, puis dessine sur la carte. Glisse un élément pour le déplacer, ses poignées pour l’ajuster.';box.append(hint);return}
+const isToken=topmapUI.selected.kind==='token',field=(text,control)=>{const label=document.createElement('label');label.className='topmap-field';label.textContent=text;label.append(control);box.append(label)};
+const character=document.createElement('select');const none=document.createElement('option');none.value='';none.textContent='Aucun personnage';character.append(none);
+characters().forEach(entry=>{const option=document.createElement('option');option.value=entry.id;option.textContent=entry.name||'Sans nom';character.append(option)});
+character.value=item.characterId||'';character.onchange=()=>{item.characterId=character.value;save();drawTopmap()};field('Personnage',character);
+if(!isToken){
+const family=TOPMAP_LINES.includes(item.type)?TOPMAP_LINES:['x','ring','star'],type=document.createElement('select');
+TOPMAP_TOOLS.filter(([id])=>family.includes(id)).forEach(([id,text])=>{const option=document.createElement('option');option.value=id;option.textContent=text;type.append(option)});
+type.value=item.type;type.onchange=()=>{item.type=type.value;if(item.type==='curve')topmapCurveDefault(item,map);save();drawTopmap()};field('Type',type);
+}
+const label=document.createElement('input');label.type='text';label.value=item.label||'';label.placeholder=isToken?'Nom affiché (par défaut : le personnage)':'Étiquette (ex. « fuite »)';label.oninput=()=>{item.label=label.value;save();drawTopmap()};field('Étiquette',label);
+const color=document.createElement('input');color.type='color';color.value=topmapColor(item,'#ffd23f');color.oninput=()=>{item.color=color.value;save();drawTopmap()};field('Couleur',color);
+if(!isToken&&!TOPMAP_LINES.includes(item.type)){const size=document.createElement('input');size.type='range';size.min='0.02';size.max='0.2';size.step='0.005';size.value=item.size||(item.type==='ring'?.06:.035);size.oninput=()=>{item.size=Number(size.value);save();drawTopmap()};field('Taille',size)}
+const remove=mb('Supprimer',()=>{if(isToken)map.tokens=map.tokens.filter(entry=>entry.id!==item.id);else map.marks=map.marks.filter(entry=>entry.id!==item.id);topmapUI.selected=null;save();renderTopmap()},'Supprimer cet élément (touche Suppr)');box.append(remove);
+}
+function renderTopmapSequenceInfo(){
+const box=$('topmapSequenceInfo');box.innerHTML='';
+const add=(tag,text,className)=>{const node=document.createElement(tag);node.textContent=text;if(className)node.className=className;box.append(node);return node};
+const id=topmapUI.sequenceId,beat=(sequenceData().beats||[]).find(item=>item.id===id),shots=storyboardShots().filter(shot=>beat?shot.sequenceId===id:!(sequenceData().beats||[]).some(item=>item.id===shot.sequenceId));
+if(beat){
+add('strong',beat.title||'Séquence sans titre');
+if(beat.guide)add('p',beat.guide,'topmap-guide');
+add('p',beat.notes||'Aucune note pour cette séquence.',beat.notes?'':'character-note');
+const scene=beat.sceneId&&S.blocks.findIndex(block=>block.id===beat.sceneId);
+if(scene>=0){
+add('h4','Scène liée : '+(S.blocks[scene].x.trim()||'(sans titre)'));
+const lines=[];for(let i=scene+1;i<S.blocks.length&&S.blocks[i].t!=='scene';i++){const block=S.blocks[i];if(block.x.trim())lines.push({type:block.t,text:block.x.trim()})}
+const script=document.createElement('div');script.className='topmap-script';
+lines.forEach(line=>{const p=document.createElement('p');p.className='topmap-line-'+line.type;p.textContent=line.type==='char'||line.type==='trans'?line.text.toUpperCase():line.text;script.append(p)});
+if(!lines.length){const p=document.createElement('p');p.className='character-note';p.textContent='Scène vide.';script.append(p)}
+box.append(script);
+}
+}else add('p','Plans non rattachés à une séquence.','character-note');
+add('h4',shots.length+' plan'+(shots.length>1?'s':'')+' du storyboard');
+const list=document.createElement('ol');list.className='topmap-shots';
+shots.forEach(shot=>{const item=document.createElement('li');const title=document.createElement('strong');title.textContent=(shot.title||'Plan sans titre')+' · '+shotDuration(shot)+' s';item.append(title);if(shot.description){const text=document.createElement('span');text.textContent=' — '+shot.description;item.append(text)}list.append(item)});
+box.append(list);
+}
+function renderTopmap(){
+const beats=sequenceData().beats||[],select=$('topmapSequence');select.innerHTML='';
+[...beats.map(beat=>[beat.id,beat.title||'Séquence sans titre']),['','Hors séquence']].forEach(([value,text])=>{const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option)});
+if(topmapUI.sequenceId===null||![...select.options].some(option=>option.value===topmapUI.sequenceId))topmapUI.sequenceId=select.options[0].value;
+select.value=topmapUI.sequenceId;
+const map=topmapFor(topmapUI.sequenceId);$('topmapRemoveImage').hidden=!map.image;$('topmapImport').textContent=map.image?'Changer la carte':'Importer une carte';
+const tools=$('topmapTools');tools.innerHTML='';
+TOPMAP_TOOLS.forEach(([id,text])=>{const button=mb(text,()=>{topmapUI.tool=id;if(id!=='select')topmapUI.selected=null;renderTopmap()},id==='select'?'Déplacer et modifier':'Dessiner : '+text);button.className=topmapUI.tool===id?'on':'';tools.append(button)});
+const list=$('topmapCharacters');list.innerHTML='';
+if(!characters().length){const empty=document.createElement('p');empty.className='character-note';empty.textContent='Crée des personnages pour les placer sur la carte.';list.append(empty)}
+characters().forEach(character=>{
+const button=mb('',()=>{const token={id:uid(),characterId:character.id,label:'',x:.5+(Math.random()-.5)*.2,y:.5+(Math.random()-.5)*.2};map.tokens.push(token);topmapUI.selected={kind:'token',id:token.id};topmapUI.tool='select';save();renderTopmap()},'Ajouter ce personnage sur la carte');
+const dot=document.createElement('span');dot.className='topmap-dot';dot.style.background=radarColor(character);button.append(dot,document.createTextNode(' '+(character.name||'Sans nom')));list.append(button);
+});
+drawTopmap();renderTopmapInspector();renderTopmapSequenceInfo();
+}
+async function exportTopmap(){
+const map=topmapFor(topmapUI.sequenceId),W=1600,H=Math.round(W*map.ratio),clone=$('topmapSvg').cloneNode(true);
+clone.querySelectorAll('.topmap-handle').forEach(node=>node.remove());
+clone.setAttribute('xmlns','http://www.w3.org/2000/svg');clone.setAttribute('width',W);clone.setAttribute('height',H);
+const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)],{type:'image/svg+xml;charset=utf-8'}));
+try{
+const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=url});
+const canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;canvas.getContext('2d').drawImage(image,0,0,W,H);
+const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+const link=document.createElement('a'),beat=(sequenceData().beats||[]).find(item=>item.id===topmapUI.sequenceId);
+link.href=URL.createObjectURL(blob);link.download='topmap-'+((beat?.title||'sequence').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'sequence')+'.png';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+}catch(error){window.alert('Impossible d’exporter la carte.')}
+finally{URL.revokeObjectURL(url)}
+}
 const collapsedStorySequences=new Set();
 function renderStoryboard(){
+$('storyCases').hidden=storySubtab!=='cases';$('storyTopmap').hidden=storySubtab!=='map';$('storyTabCases').className=storySubtab==='cases'?'on':'';$('storyTabMap').className=storySubtab==='map'?'on':'';
+if(storySubtab==='map'){renderTopmap();return}
 const board=storyboardData(),shots=board.shots,scenes=sequenceScenes(),beats=sequenceData().beats||[],grid=$('storyboardGrid');grid.innerHTML='';
 loadStoryboardAudio();
 if(!board.sequenceLinksMigrated){
@@ -1531,6 +1687,19 @@ $('arcPanel').addEventListener('input',event=>{const field=event.target.closest(
 $('vchrono').onclick=()=>setView('t');
 $('vg').onclick=()=>setView('g');
 $('vstory').onclick=()=>setView('st');
+$('storyTabCases').onclick=()=>{storySubtab='cases';renderStoryboard()};
+$('storyTabMap').onclick=()=>{if(animaticTimer)stopAnimatic(false);storySubtab='map';renderStoryboard()};
+$('topmapSequence').onchange=()=>{topmapUI.sequenceId=$('topmapSequence').value;topmapUI.selected=null;renderTopmap()};
+$('topmapImport').onclick=()=>$('topmapFile').click();
+$('topmapFile').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;try{const image=await compressStoryboardImage(file),ratio=await new Promise(resolve=>{const img=new Image();img.onload=()=>resolve(img.naturalHeight/img.naturalWidth||.5625);img.onerror=()=>resolve(.5625);img.src=image}),map=topmapFor(topmapUI.sequenceId);map.image=image;map.ratio=ratio;save();renderTopmap()}catch(error){window.alert('Impossible de charger cette image.')}};
+$('topmapRemoveImage').onclick=()=>{const map=topmapFor(topmapUI.sequenceId);map.image='';map.ratio=.5625;save();renderTopmap()};
+$('topmapExport').onclick=exportTopmap;
+addEventListener('keydown',e=>{
+if(currentView!=='st'||storySubtab!=='map'||!['Delete','Backspace'].includes(e.key)||e.target.closest('input,textarea,select'))return;
+const map=topmapFor(topmapUI.sequenceId),item=topmapItem(map);if(!item)return;
+e.preventDefault();if(topmapUI.selected.kind==='token')map.tokens=map.tokens.filter(entry=>entry.id!==item.id);else map.marks=map.marks.filter(entry=>entry.id!==item.id);
+topmapUI.selected=null;save();renderTopmap();
+});
 $('addStoryPanel').onclick=()=>addStoryboardShot();
 $('exportAnimatic').onclick=event=>exportAnimatic(null,event.currentTarget);
 $('playAnimatic').onclick=toggleAnimatic;

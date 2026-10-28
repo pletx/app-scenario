@@ -170,6 +170,8 @@
 </div>
 </section>
 <section id="storyv" hidden>
+<div class="subtabs"><button id="storyTabCases" type="button" class="on">Cases</button><button id="storyTabMap" type="button">Topmap</button></div>
+<div id="storyCases">
 <div class="story-toolbar"><div><h1>Storyboard / Animatique</h1><p>Découpe le récit en plans, règle leur durée et lance un aperçu rythmé.</p></div><div class="story-actions"><button id="addStoryPanel">+ Case</button><button id="exportAnimatic">Exporter WebM</button></div></div>
 <div class="story-audio"><div class="story-audio-heading"><div><strong>Son de fond</strong><span id="storyAudioName">Aucun fichier audio</span></div><div class="story-audio-actions"><button id="importStoryAudio" type="button">Importer un son</button><button id="removeStoryAudio" type="button" hidden>Retirer</button><input id="storyAudioFile" type="file" accept="audio/*" hidden></div></div><audio id="storyAudio" controls loop preload="metadata" hidden></audio></div>
 <div class="animatic-player">
@@ -178,5 +180,11 @@
 </div>
 <div id="storyboardEmpty" class="timeline-empty">Aucune case pour le moment.</div>
 <div id="storyboardGrid" class="storyboard-grid"></div>
+</div>
+<div id="storyTopmap" hidden>
+<div class="story-toolbar"><div><h1>Topmap</h1><p>Place les personnages sur une carte et trace leurs déplacements, séquence par séquence.</p></div><div class="story-actions"><select id="topmapSequence" aria-label="Séquence"></select><button id="topmapImport" type="button">Importer une carte</button><button id="topmapRemoveImage" type="button" hidden>Retirer la carte</button><button id="topmapExport" type="button">Exporter (PNG)</button><input id="topmapFile" type="file" accept="image/*" hidden></div></div>
+<div class="topmap-layout"><div class="topmap-main"><div id="topmapTools" class="topmap-tools"></div><svg id="topmapSvg" class="topmap-svg" viewBox="0 0 1000 562" role="img" aria-label="Carte de la séquence"></svg></div>
+<aside class="topmap-side"><h3>Personnages</h3><div id="topmapCharacters"></div><h3>Élément sélectionné</h3><div id="topmapInspector"></div><h3>Contenu de la séquence</h3><div id="topmapSequenceInfo" class="topmap-info"></div></aside></div>
+</div>
 </section>
 <script src="script.js"></script></body></html>
