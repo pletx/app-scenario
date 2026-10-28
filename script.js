@@ -358,18 +358,107 @@ function renderPowerScaling(){
 if(selectedCharacterId&&!selectedCharacter())selectedCharacterId=null;
 if(!selectedCharacterId&&characters().length)selectedCharacterId=characters()[0].id;
 renderCharacterList();const character=selectedCharacter();
+$('powerDetail').hidden=powerSubtab!=='detail';$('powerStatsView').hidden=powerSubtab!=='stats';$('pvDetail').className=powerSubtab==='detail'?'on':'';$('pvStats').className=powerSubtab==='stats'?'on':'';
+if(powerSubtab==='stats'){renderPowerStatsView();return}
 $('powerEmpty').hidden=!!character;$('powerPanel').hidden=!character;
 if(character){$('powerHeading').textContent=character.name||'Personnage sans nom';renderPowerStats(character)}
+}
+const RADAR_GRADES=['—','E','D','C','B','A','S'];
+let powerSubtab='detail';
+function radarData(){
+const radar=S.radar||(S.radar={axes:[],shown:[]});
+if(!radar.axes.length)radar.axes=['Force','Vitesse','Endurance','Intelligence','Technique','Pouvoir'].map(label=>({id:uid(),label}));
+radar.shown=(radar.shown||[]).filter(id=>characters().some(character=>character.id===id));
+return radar;
+}
+function radarColor(character){return character.radarColor||CHART_COLORS[Math.max(0,characters().indexOf(character))%CHART_COLORS.length]}
+function radarValue(character,axisId){return Math.max(0,Math.min(6,Number(character.radar?.[axisId])||0))}
+function radarReportFields(character){const radar=radarData();return radar.axes.filter(axis=>radarValue(character,axis.id)>0).map(axis=>reportField('Stat — '+axis.label,RADAR_GRADES[radarValue(character,axis.id)])).join('')}
+function drawRadar(){
+const radar=radarData(),svg=$('radarSvg'),cx=280,cy=262,R=185,n=radar.axes.length;
+const angle=i=>-Math.PI/2+i*2*Math.PI/n,point=(i,v)=>[Math.round((cx+Math.cos(angle(i))*R*v/6)*10)/10,Math.round((cy+Math.sin(angle(i))*R*v/6)*10)/10];
+let markup='';
+const editingCharacter=selectedCharacter(),editingGrade=axis=>editingCharacter&&radar.shown.includes(editingCharacter.id)&&radarValue(editingCharacter,axis.id)>0?' ('+RADAR_GRADES[radarValue(editingCharacter,axis.id)]+')':'';
+for(let grade=1;grade<=6;grade++)markup+=`<polygon points="${radar.axes.map((_,i)=>point(i,grade).join(',')).join(' ')}" fill="none" stroke="${grade===6?'#9b968a':'#d6d0c3'}"/><text x="${cx+5}" y="${cy-R*grade/6-3}" class="radar-grade">${RADAR_GRADES[grade]}</text>`;
+radar.axes.forEach((axis,i)=>{const[x,y]=point(i,6),[lx,ly]=point(i,6.6),cos=Math.cos(angle(i));markup+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#d6d0c3"/><text x="${lx}" y="${ly+4}" text-anchor="${Math.abs(cos)<.25?'middle':cos>0?'start':'end'}" class="radar-label">${htmlEscape(axis.label)}${editingGrade(axis)}</text>`});
+characters().filter(character=>radar.shown.includes(character.id)).sort((a,b)=>(a.id===selectedCharacterId)-(b.id===selectedCharacterId)).forEach(character=>{
+const color=radarColor(character),editing=character.id===selectedCharacterId,points=radar.axes.map((axis,i)=>point(i,radarValue(character,axis.id)));
+markup+=`<polygon points="${points.map(p=>p.join(',')).join(' ')}" fill="${htmlEscape(color)}" fill-opacity=".16" stroke="${htmlEscape(color)}" stroke-width="${editing?3:2}" stroke-linejoin="round"/>`;
+points.forEach((p,i)=>{markup+=`<circle data-character="${htmlEscape(character.id)}" data-axis="${htmlEscape(radar.axes[i].id)}" cx="${p[0]}" cy="${p[1]}" r="${editing?8:4}" fill="${htmlEscape(color)}" stroke="#fff" stroke-width="2"><title>${htmlEscape(character.name||'Sans nom')} — ${htmlEscape(radar.axes[i].label)} : ${RADAR_GRADES[radarValue(character,radar.axes[i].id)]}</title></circle>`});
+});
+svg.innerHTML=markup;
+svg.querySelectorAll('circle').forEach(circle=>{
+if(circle.dataset.character!==selectedCharacterId)return;
+circle.onpointerdown=event=>{
+event.preventDefault();const character=selectedCharacter(),index=radar.axes.findIndex(axis=>axis.id===circle.dataset.axis);if(!character||index<0)return;
+const rect=svg.getBoundingClientRect();
+drag(move=>{const dx=(move.clientX-rect.left)*680/rect.width-60-cx,dy=(move.clientY-rect.top)*520/rect.height-cy,distance=dx*Math.cos(angle(index))+dy*Math.sin(angle(index));(character.radar||(character.radar={}))[radar.axes[index].id]=Math.max(0,Math.min(6,Math.round(distance/R*6)));drawRadar()},()=>{save();renderPowerStatsView()});
+};
+});
+}
+function renderPowerStatsView(){
+const radar=radarData(),list=$('radarCharacters');list.innerHTML='';
+if(!characters().length){const empty=document.createElement('p');empty.className='em';empty.textContent='Crée des personnages pour comparer leurs stats.';list.append(empty)}
+if(!radar.shown.length&&selectedCharacter())radar.shown.push(selectedCharacterId);
+characters().forEach(character=>{
+const row=document.createElement('div');row.className='radar-character'+(character.id===selectedCharacterId?' on':'');
+const check=document.createElement('input');check.type='checkbox';check.checked=radar.shown.includes(character.id);check.setAttribute('aria-label','Afficher '+(character.name||'Sans nom'));check.onchange=()=>{radar.shown=check.checked?[...radar.shown,character.id]:radar.shown.filter(id=>id!==character.id);save();drawRadar()};
+const color=document.createElement('input');color.type='color';color.value=radarColor(character);color.setAttribute('aria-label','Couleur de '+(character.name||'Sans nom'));color.oninput=()=>{character.radarColor=color.value;save();drawRadar()};
+const name=mb(character.name||'Sans nom',()=>{selectedCharacterId=character.id;if(!radar.shown.includes(character.id))radar.shown.push(character.id);save();renderPowerStatsView()},'Modifier les notes de ce personnage');
+row.append(check,color,name);list.append(row);
+});
+const axesBox=$('radarAxes');axesBox.innerHTML='';
+radar.axes.forEach((axis,index)=>{
+const row=document.createElement('div');row.className='radar-axis';
+const label=document.createElement('input');label.type='text';label.value=axis.label;label.setAttribute('aria-label','Nom de l’axe '+(index+1));label.oninput=()=>{axis.label=label.value;save();drawRadar()};label.onchange=renderPowerStatsView;
+const remove=mb('×',()=>{if(!window.confirm('Supprimer l’axe « '+axis.label+' » ?'))return;radar.axes.splice(index,1);characters().forEach(character=>{if(character.radar)delete character.radar[axis.id]});save();renderPowerStatsView()},'Supprimer cet axe');remove.disabled=radar.axes.length<=3;
+row.append(label,remove);axesBox.append(row);
+});
+const editor=$('radarEditor');editor.innerHTML='';const character=selectedCharacter();
+if(character){
+const title=document.createElement('h3');title.textContent='Notes de '+(character.name||'Sans nom');editor.append(title);
+const strengths=document.createElement('p');strengths.className='character-note';
+const updateStrengths=()=>{strengths.textContent='Points forts : '+(radar.axes.map(axis=>[axis.label,radarValue(character,axis.id)]).filter(([,value])=>value>0).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([text,value])=>text+' ('+RADAR_GRADES[value]+')').join(' · ')||'aucune note')};
+const grid=document.createElement('div');grid.className='radar-grades';
+radar.axes.forEach(axis=>{const cell=document.createElement('label');cell.textContent=axis.label;const select=document.createElement('select');RADAR_GRADES.forEach((grade,value)=>{const option=document.createElement('option');option.value=value;option.textContent=grade;select.append(option)});select.value=radarValue(character,axis.id);select.onchange=()=>{(character.radar||(character.radar={}))[axis.id]=Number(select.value);save();drawRadar();updateStrengths()};cell.append(select);grid.append(cell)});
+updateStrengths();editor.append(grid,strengths);
+}
+drawRadar();
 }
 function sequenceData(){return S.sequencer||(S.sequencer={templateId:'harmon',beats:[]})}
 function sequenceScenes(){
 ids();let number=0;
 return S.blocks.filter(block=>block.t==='scene').map(block=>({id:block.id,label:(++number)+'. '+(block.x.trim()||'(sans titre)')}));
 }
+const SEQUENCE_DESCRIPTIONS={
+harmon:'Huit étapes en cercle : le héros quitte sa zone de confort pour obtenir ce qu’il désire, en paie le prix, puis revient changé. Idéal pour les récits de transformation, en particulier les formats courts ou sériels.',
+hero:'Douze étapes inspirées de Joseph Campbell et Christopher Vogler : appel de l’aventure, mentor, épreuves, épreuve suprême puis retour avec un « élixir ». Adapté aux grandes aventures initiatiques et à la fantasy.',
+threeAct:'La structure classique du cinéma : mise en place, confrontation, résolution, reliées par deux tournants et un point médian. Une base simple et souple pour presque tous les scénarios.',
+sevenPoint:'Sept jalons, de l’accroche à la résolution, qui permettent de construire l’histoire à rebours depuis son dernier point. Pratique pour vérifier que chaque tournant découle du précédent.',
+eightSequences:'Le long métrage découpé en huit blocs d’environ quinze minutes, chacun avec sa propre question dramatique. Utile pour garder du rythme dans un scénario long.',
+freytag:'Cinq temps, de l’exposition à la catastrophe ou la résolution, disposés en pyramide autour du climax. Adapté à la tragique, au théâtre et aux histoires ramassées.',
+fifteenBeats:'Quinze temps très détaillés, avec une image d’ouverture et une image finale qui se répondent. Bien adaptés aux scénarios de long métrage qui demandent un minutage serré.',
+kishotenketsu:'Quatre temps d’origine extrême-orientale : introduction, développement, tournant inattendu, conclusion. Le moteur n’est pas le conflit mais le contraste et la surprise ; convient aux histoires douces, courtes ou contemplatives.',
+fichtean:'Une exposition brève suivie d’une chaîne de crises de plus en plus fortes jusqu’au climax. La tension monte dès les premières pages ; idéal pour les thrillers et les récits à fort rythme.',
+mystery:'Structure d’enquête : un mystère est posé, des indices et des fausses pistes s’accumulent, puis une reconstitution révèle la vérité. Convient aux polars, à l’espionnage et aux intrigues à secrets.',
+romance:'Neuf étapes qui suivent la rencontre de deux personnages, leur rapprochement, la crise qui les sépare, puis le choix qui décide de leur sort. Valable pour toute relation affective, heureuse ou non.',
+davidGoliath:'Un combat très inégal où le plus faible l’emporte par la ruse, le terrain ou la détermination. L’enjeu est de faire sentir l’écart de puissance, puis de montrer la faille qui renverse la situation.',
+duelEquilibre:'Un duel entre deux adversaires de force comparable, où l’avantage passe de l’un à l’autre. Chaque coup révèle un peu plus leur style et leur caractère, jusqu’à un choix tactique ou personnel qui tranche.',
+combatEquilibre:'Une bataille ou un affrontement de groupe entre deux camps équivalents. La tension vient des plans, des contre-attaques, des pertes et d’un point de bascule qui décide de l’issue.'
+};
+function updateSequenceDescription(){
+const box=$('sequenceDescription'),id=$('sequenceTemplate').value,template=SEQUENCE_TEMPLATES[id];
+box.innerHTML='';box.hidden=!template;
+if(!template)return;
+const title=document.createElement('strong');title.textContent=template.name;
+const text=document.createElement('p');text.textContent=SEQUENCE_DESCRIPTIONS[id]||'';
+box.append(title,text);
+}
 function renderSequencer(){
 const sequence=sequenceData(),templateSelect=$('sequenceTemplate');
 if(!templateSelect.options.length){Object.entries(SEQUENCE_TEMPLATES).forEach(([id,template])=>{const option=document.createElement('option');option.value=id;option.textContent=template.name;templateSelect.append(option)})}
 if(SEQUENCE_TEMPLATES[sequence.templateId])templateSelect.value=sequence.templateId;
+updateSequenceDescription();
 const scenes=sequenceScenes(),list=$('sequenceBeats');list.innerHTML='';
 const linked=sequence.beats.filter(beat=>beat.sceneId&&scenes.some(scene=>scene.id===beat.sceneId)).length;
 $('sequenceProgress').textContent=sequence.beats.length?sequence.beats.length+' étapes':'Aucune étape';
@@ -1182,7 +1271,7 @@ return characters().map(character=>{
 const arc=character.arc||{},powerStats=character.powerStats||[],fields=[['Âge',character.age],['Pronoms',character.pronouns],['Rôle / profession',character.role],['Apparence',character.appearance],['Croyance fondamentale',character.personality],['Expérience négative',character.background],['Objectif / justification',character.goal],['Motivation / origine du besoin',character.motivation],['Peurs / but',character.fear],['Relations avec les autres',character.secret],['Style de vie',character.voice],['Interaction avec autrui / notes',character.notes],['Humeur / tempérament',character.mood],['Loisirs',character.hobbies],['Compétences',character.skills],['Habitudes / addictions',character.habits],['Goûts / préférences',character.preferences],['Faiblesses',character.weaknesses]];
 const profile=fields.filter(([,value])=>String(value||'').trim()).map(([label,value])=>reportField(label,value)).join('');
 const custom=(character.customFields||[]).filter(field=>field.label||field.value).map(field=>reportField(field.label||'Champ personnalisé',field.value)).join('');
-const power=powerStats.filter(stat=>stat.label||stat.value).map(stat=>reportField(stat.label||'Statistique',stat.value)).join('');
+const power=powerStats.filter(stat=>stat.label||stat.value).map(stat=>reportField(stat.label||'Statistique',stat.value)).join('')+radarReportFields(character);
 const arcTypeLabels={positive:'Positif / transformation',negative:'Négatif / chute',flat:'Stable / influence sur le monde',redemption:'Rédemption',corruption:'Corruption',maturation:'Maturation',custom:'Autre trajectoire'};
 const arcFields=[['État initial',arc.startingState],['Blessure ou croyance de départ',arc.startingBelief],['Désir extérieur',arc.desire],['Besoin intérieur',arc.need],['Déclencheur',arc.catalyst],['Premier tournant',arc.firstTurningPoint],['Point médian',arc.midpoint],['Crise / point le plus bas',arc.crisis],['Choix décisif / climax',arc.climaxChoice],['État final',arc.endingState],['Résumé de l’arc',arc.summary]];
 const arcBody=arcFields.filter(([,value])=>String(value||'').trim()).map(([label,value])=>reportField(label,value)).join('');
@@ -1434,6 +1523,9 @@ $('removeLocationImage').onclick=()=>{const location=selectedLocation();if(locat
 $('varc').onclick=()=>setView('a');
 $('vp').onclick=()=>setView('p');
 $('vseq').onclick=()=>setView('q');
+$('pvDetail').onclick=()=>{powerSubtab='detail';renderPowerScaling()};
+$('pvStats').onclick=()=>{powerSubtab='stats';renderPowerScaling()};
+$('addRadarAxis').onclick=()=>{radarData().axes.push({id:uid(),label:'Nouvel axe'});save();renderPowerStatsView()};
 $('arcType').onchange=()=>{const character=selectedCharacter();if(!character)return;(character.arc||(character.arc=defaultCharacterArc())).type=$('arcType').value;save()};
 $('arcPanel').addEventListener('input',event=>{const field=event.target.closest('[data-arc-field]'),character=selectedCharacter();if(!field||!character)return;(character.arc||(character.arc=defaultCharacterArc()))[field.dataset.arcField]=field.value;save()});
 $('vchrono').onclick=()=>setView('t');
@@ -1492,6 +1584,7 @@ $('timelineSelect').onchange=()=>{S.activeTimelineId=$('timelineSelect').value;s
 $('timelineName').oninput=()=>{const timeline=activeTimeline();if(!timeline)return;timeline.name=$('timelineName').value;const option=[...$('timelineSelect').options].find(item=>item.value===timeline.id);if(option)option.textContent=timeline.name||'Frise sans titre';save()};
 $('deleteTimeline').onclick=()=>{const timeline=activeTimeline();if(!timeline||!window.confirm('Supprimer la frise « '+(timeline.name||'sans titre')+' » et ses événements ?'))return;S.timelines=timelineStore().filter(item=>item.id!==timeline.id);S.activeTimelineId=S.timelines[0]?.id||'';save();renderTimeline()};
 $('applySequenceTemplate').onclick=applySequenceTemplate;
+$('sequenceTemplate').onchange=updateSequenceDescription;
 $('addSequenceBeat').onclick=addSequenceBeat;
 const ITAG={Intrigue:'#a8442c',Personnage:'#3b7dd8',Dialogue:'#8e5bd1',Lieu:'#2f9e6b',Autre:'#8a8a8a'};
 const ide=()=>S.ideas||(S.ideas=[]);let IF={tag:'',star:false,q:''};

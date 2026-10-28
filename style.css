@@ -237,7 +237,7 @@ aside{top:calc(env(safe-area-inset-top,0px) + 110px)}
 .chart-options input[type="text"],.chart-options input[type="number"],.chart-options select{padding:5px 7px;border:1px solid var(--character-rule);border-radius:3px;background:var(--paper);color:var(--character-ink);font:13px system-ui,sans-serif}
 .chart-options input[type="number"]{width:74px}.chart-options>button{align-self:end}
 .chart-svg{display:block;width:100%;height:auto;background:var(--paper);border:1px solid var(--line);touch-action:none}
-.chart-svg text{font:12px system-ui,sans-serif;fill:#77727a}.chart-svg .chart-title{font-weight:700;font-size:14px;fill:#28252a}
+.chart-svg text{font:12px system-ui,sans-serif;fill:var(--muted)}.chart-svg .chart-title{font-weight:700;font-size:14px;fill:var(--ink)}
 .chart-svg circle{cursor:grab}
 .chart-row{display:grid;grid-template-columns:28px minmax(0,1fr) 70px 70px 140px 150px auto;gap:6px;align-items:center;margin-top:6px}
 .chart-row input{padding:5px;border:1px solid var(--character-rule);border-radius:3px;background:var(--paper);color:var(--character-ink);font:13px system-ui,sans-serif;min-width:0}
@@ -353,6 +353,16 @@ header{gap:5px;padding:7px 8px}
 .ac button{font-size:11px}
 }
 @media print{body::before,header,aside,#chips,#bv,.lb{display:none}:root{padding:0}main{display:block;padding:0}.paper{box-shadow:none;background:#fff;color:#000;padding:0}.row:focus-within{background:none}}
+.sequence-description{margin:12px 0 0;padding:12px 16px;background:color-mix(in srgb,var(--page) 10%,var(--paper));border:1px solid var(--line);border-left:4px solid var(--page)}.sequence-description strong{color:var(--page);font:italic 800 15px 'Arial Narrow','Roboto Condensed',Arial,sans-serif;text-transform:uppercase}.sequence-description p{margin:6px 0 0;line-height:1.5}
+.subtabs{display:flex;gap:6px;margin:8px 0 12px}.subtabs button{border-bottom:3px solid var(--page)}
+.radar-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;margin-top:12px}
+.radar-side h3{margin:12px 0 6px;color:var(--character-red);font:italic 800 14px 'Arial Narrow','Roboto Condensed',Arial,sans-serif;text-transform:uppercase}.radar-side h3:first-child{margin-top:0}
+.radar-character{display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:3px 4px;border-radius:6px}.radar-character.on{background:color-mix(in srgb,var(--page) 14%,transparent);outline:1px solid var(--page)}.radar-character button{flex:1;text-align:left;border:0;background:transparent;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.radar-character input[type="color"]{width:24px;height:24px;padding:0;border:0;background:transparent}
+.radar-axis{display:flex;gap:6px;margin-bottom:4px}.radar-axis input{flex:1;min-width:0;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink);font:13px system-ui,sans-serif}
+.radar-svg{display:block;width:100%;max-width:620px;height:auto;margin:0 auto;background:var(--paper);border:1px solid var(--line);touch-action:none}.radar-svg text{font:12px system-ui,sans-serif;fill:var(--muted)}.radar-svg .radar-label{font-weight:700;font-size:13px;fill:var(--ink)}.radar-svg .radar-grade{font-size:10px}.radar-svg circle{cursor:grab}
+.radar-grades{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 14px;margin:8px 0}.radar-grades label{display:grid;gap:3px;font:12px system-ui,sans-serif;color:var(--muted)}.radar-grades select{padding:5px 7px}
+#radarEditor h3{margin:14px 0 4px;color:var(--character-red);font:italic 800 16px 'Arial Narrow','Roboto Condensed',Arial,sans-serif;text-transform:uppercase}
+@media (max-width:800px){.radar-layout{grid-template-columns:1fr}}
 .brand{display:flex;align-items:center;gap:10px}#menuToggle{display:none}
 @media (max-width:700px){
 .brand{justify-content:space-between}#menuToggle{display:inline-block}

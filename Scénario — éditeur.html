@@ -87,6 +87,8 @@
 </form>
 </div></div></section>
 <section id="pv" hidden>
+<div class="subtabs"><button id="pvDetail" type="button" class="on">Détail</button><button id="pvStats" type="button">Stats (radar)</button></div>
+<div id="powerDetail">
 <div class="character-toolbar"><div><strong>Power scaling</strong><span id="powerCharacterName"></span></div><div class="character-actions"><button id="addPowerStat" type="button">+ Statistique</button></div></div>
 <div class="character-layout power-layout">
 <aside class="character-list"><div id="powerCharacterList"></div></aside>
@@ -96,9 +98,16 @@
 <div class="subsection-heading"><div><h2 id="powerHeading"></h2><p class="character-note">Définissez un tier, puis détaillez les capacités et justifications pour ce personnage.</p></div></div>
 <div id="powerScalingStats"></div>
 </div>
+</div></div></div>
+<div id="powerStatsView" hidden>
+<div class="character-toolbar"><div><strong>Stats comparées</strong><span>Notes de E à S, un diagramme par personnage, superposables</span></div><div class="character-actions"><button id="addRadarAxis" type="button">+ Axe</button></div></div>
+<div class="radar-layout">
+<aside class="radar-side"><h3>Personnages affichés</h3><div id="radarCharacters"></div><h3>Axes du diagramme</h3><div id="radarAxes"></div></aside>
+<div class="radar-main"><svg id="radarSvg" class="radar-svg" viewBox="-60 0 680 520" role="img" aria-label="Diagramme en toile d’araignée des stats"></svg><div id="radarEditor"></div></div>
 </div></div></section>
 <section id="seqv" hidden>
 <div class="sequencer-toolbar"><div><h1>Séquençage</h1><p class="character-note">Construis la progression narrative, puis relie chaque étape à une scène du scénario.</p></div><div class="sequencer-controls"><label for="sequenceTemplate">Structure</label><select id="sequenceTemplate"></select><button id="applySequenceTemplate">Charger le modèle</button><button id="addSequenceBeat">+ Étape</button></div></div>
+<div id="sequenceDescription" class="sequence-description"></div>
 <div class="sequencer-summary"><span id="sequenceProgress">Aucune étape</span><span id="sequenceSceneCount"></span></div>
 <div id="sequenceBeats"></div>
 </section>
