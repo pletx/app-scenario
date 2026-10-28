@@ -1,0 +1,5 @@
+# Données personnelles et documents tiers : ne pas publier
+*.json
+!manifest.webmanifest
+*.pdf
+Scénario autre — éditeur.html

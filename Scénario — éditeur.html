@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><title>Scénario — éditeur</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#a8442c"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css"></head><body>
+<header>
+<div class="r1"><span class="brand"><b> Scénario</b><button id="menuToggle" type="button" aria-expanded="false">☰ Menu</button></span>
+<span id="vt"><button id="vw" class="on"> Écriture</button> <button id="vb"> Tableau</button><button id="vi"> Idées</button><button id="vc">Personnages</button><button id="vl">Lieux</button><button id="varc">Arcs</button><button id="vp">Power scaling</button><button id="vseq">Séquençage</button><button id="vchrono">Chronologie</button><button id="vg">Courbes</button><button id="vstory">Storyboard</button></span><span class="sp"></span><span class="ac"><button id="bx">Exporter Fountain</button><button id="exportFullProject">Dossier complet</button><button id="bp">Imprimer / PDF</button><button id="bn">Nouveau</button></span></div>
+<div class="projects"><label for="ps">Projet</label><select id="ps" aria-label="Projet actif"></select><button id="pn">+ Projet</button><button id="pr">Renommer</button><button id="pd">Supprimer</button><button id="saveProject">Enregistrer</button><button id="linkProjectJson">Lier JSON</button><button id="exportProject">Sauvegarder JSON</button><button id="importProject">Importer JSON</button><input id="projectFile" type="file" accept="application/json,.json" hidden><span id="saveStatus" role="status" aria-live="polite"></span></div>
+<div class="r2"><span id="tb"></span><span id="bt" hidden><span class="gl">Ajouter</span><button id="a1">+ Idée</button><button id="a2">+ Lieu</button><button id="a3">+ Note</button><button id="zoneDraw" title="Dessiner une zone pour regrouper des nœuds">Tracer une zone</button><span class="gl">Relier</span><button id="a4" title="Relier les scènes dans l’ordre">Scènes en séquence</button><button id="a5" title="Relier chaque personnage aux scènes où il parle">Personnages ↔ scènes</button><span class="gl">Historique</span><button id="undoBoard" title="Annuler (Ctrl+Z)" disabled>↶ Annuler</button><button id="redoBoard" title="Rétablir (Ctrl+Y)" disabled>↷ Rétablir</button><span class="gl">Vue</span><button id="a6">Reset position</button><button id="favFilter" title="Mettre en retrait les nœuds qui ne sont pas favoris">★ Favoris</button><button id="z1">−</button><button id="z2">+</button></span><span id="it" hidden><span class="gl">Filtrer</span><span id="tf"></span><button id="sf">★ Favoris</button><input id="sq" type="search" placeholder="Rechercher…"><span class="gl" id="ic"></span></span></div>
+</header>
+<div id="chips"></div>
+<main id="mv">
+<aside><h3>Scènes</h3><div id="nav"></div><div id="st"></div></aside>
+<div class="paper">
+<input class="ti t" id="ti" placeholder="TITRE DU FILM" aria-label="Titre">
+<input class="ti a" id="au" placeholder="Écrit par…" aria-label="Auteur">
+<div id="doc"></div>
+</div>
+</main>
+<section id="bv" hidden><div id="w"><svg id="sv"></svg></div><div id="hint">Glissez un point d’une carte vers une autre pour les relier · clic sur un lien pour le supprimer · double-clic sur une scène pour l’éditer</div></section>
+<dialog id="dg"><b>Export Fountain (.fountain / texte)</b><p style="color:var(--muted);margin:4px 0 8px">Format texte standard, compatible avec Final Draft, Highland, Fade In, etc.</p><textarea id="ex" readonly></textarea><div class="b"><button id="cp">Copier</button><button id="cl">Fermer</button></div></dialog>
+<section id="iv" hidden>
+<div class="cap"><textarea id="ci" placeholder="Jetez vos idées en vrac… (Entrée pour ajouter, Maj+Entrée pour un saut de ligne)"></textarea>
+<div class="cb"><select id="ct"></select><label><input type="checkbox" id="cs" checked> Une idée par ligne</label><button id="ca" class="on">Ajouter</button></div></div>
+<div id="il"></div></section>
+<section id="cv" hidden>
+<div class="character-toolbar"><div><strong>Fiches personnages</strong><span id="characterCount"></span></div><div class="character-actions"><button id="newCharacter">+ Personnage</button><button id="importCharacterPdf">Importer une fiche PDF</button><input id="characterPdf" type="file" accept="application/pdf,.pdf" hidden></div></div>
+<div class="character-layout">
+<aside class="character-list"><div id="characterList"></div></aside>
+<div class="character-editor">
+<p id="characterEmpty" class="em">Créez une fiche ou importez un PDF pour commencer.</p>
+<form id="characterForm" hidden>
+<div class="character-heading"><label class="character-name">Nom du personnage<input data-character-field="name" placeholder="Nom" required></label><button id="deleteCharacter" type="button" title="Supprimer cette fiche">Supprimer la fiche</button></div>
+<div class="character-fields">
+<label>Âge<input data-character-field="age" placeholder="Âge"></label>
+<label>Pronoms<input data-character-field="pronouns" placeholder="Pronoms"></label>
+<label>Rôle / profession<input data-character-field="role" placeholder="Rôle ou profession"></label>
+<label>Apparence<textarea data-character-field="appearance" rows="6"></textarea></label>
+<h2>Inconscient</h2>
+<label>Croyance/Envie fondamentale<textarea data-character-field="personality" rows="6" placeholder="pour eviter ma mauvaise experience je dois.."></textarea></label>
+<label>Expérience négative (la cause de la croyance fondamentale)<textarea data-character-field="background" rows="6"></textarea></label>
+<h2>conscient / LA CROYANCE FONDAMENTALE AFFECTE TOUS LES DOMAINES DE SA VIE</h2>
+<label>Comment il justifie sa croyance fondamentale<textarea data-character-field="goal" rows="6"></textarea></label>
+<label>But<textarea data-character-field="fear" rows="6"></textarea></label>
+<label>Relations avec les autres<textarea data-character-field="secret" rows="6"></textarea></label>
+<label>Style de vie<textarea data-character-field="voice" rows="6"></textarea></label>
+<label>interaction avec autrui<textarea data-character-field="notes" rows="6"></textarea></label>
+<label>Origine du besoin<textarea data-character-field="motivation" rows="6"></textarea></label>
+</div>
+<div class="character-attributes-layout">
+<section class="character-subsection"><h2>More Character Attributes</h2><p class="character-note">Ces éléments peuvent refléter le désir profond du personnage, sans y être obligatoirement liés.</p><div class="character-fields">
+<label>Humeur / tempérament<textarea data-character-field="mood" rows="6"></textarea></label>
+<label>Loisirs<textarea data-character-field="hobbies" rows="6"></textarea></label>
+<label>Compétences<textarea data-character-field="skills" rows="6"></textarea></label>
+<label>Habitudes / addictions<textarea data-character-field="habits" rows="6"></textarea></label>
+<label>Goûts / préférences<textarea data-character-field="preferences" rows="6"></textarea></label>
+<label>Faiblesses<textarea data-character-field="weaknesses" rows="6"></textarea></label>
+</div></section>
+<section class="character-portrait"><h2>Portrait</h2><div class="portrait-frame"><img id="characterPortraitPreview" alt="Portrait du personnage" hidden><span id="portraitPlaceholder">Espace portrait</span></div><input id="characterPortraitFile" type="file" accept="image/*" hidden><div class="portrait-actions"><button id="chooseCharacterPortrait" type="button">Choisir une image</button><button id="removeCharacterPortrait" type="button" hidden>Retirer</button></div></section>
+</div>
+<section class="character-subsection"><div class="subsection-heading"><h2>Autres éléments importés</h2><button id="addCharacterField" type="button">+ Champ</button></div><div id="characterCustomFields"></div></section>
+<section class="character-subsection"><div class="subsection-heading"><h2>Relations</h2><button id="addRelationship" type="button">+ Relation</button></div><div id="characterRelations"></div></section>
+<details class="character-source"><summary></summary><textarea id="characterPdfText" rows="6" placeholder="Le texte extrait de la fiche importée sera conservé ici."></textarea></details>
+</form>
+</div></div></section>
+<section id="lv" hidden>
+<div class="character-toolbar"><div><strong>Lieux</strong><span id="locationCount"></span></div><div class="character-actions"><button id="newLocation">+ Lieu</button><button id="detectLocations" title="Créer une fiche pour chaque lieu des intitulés de scène">Détecter depuis le scénario</button></div></div>
+<div class="character-layout">
+<aside class="character-list"><div id="locationList"></div></aside>
+<div class="character-editor">
+<p id="locationEmpty" class="em">Créez une fiche ou détectez les lieux depuis les intitulés de scène.</p>
+<form id="locationForm" hidden>
+<div class="character-heading"><label class="character-name">Nom du lieu<input data-location-field="name" placeholder="Nom" required></label><button id="deleteLocation" type="button">Supprimer la fiche</button></div>
+<div class="character-fields">
+<label>Type<select data-location-field="type"><option value="">—</option><option value="INT">Intérieur (INT)</option><option value="EXT">Extérieur (EXT)</option><option value="INT/EXT">Intérieur / extérieur</option></select></label>
+<label>Adresse / situation<input data-location-field="address" placeholder="Où se trouve-t-il ?"></label>
+<label>Description<textarea data-location-field="description" rows="6"></textarea></label>
+<label>Ambiance / atmosphère<textarea data-location-field="atmosphere" rows="6"></textarea></label>
+<label>Détails visuels et sonores<textarea data-location-field="details" rows="6"></textarea></label>
+<label>Importance dramatique<textarea data-location-field="importance" rows="6"></textarea></label>
+<label>Notes<textarea data-location-field="notes" rows="6"></textarea></label>
+</div>
+<section class="character-portrait"><h2>Image de référence</h2><div class="portrait-frame"><img id="locationImagePreview" alt="Image du lieu" hidden><span id="locationImagePlaceholder">Espace image</span></div><input id="locationImageFile" type="file" accept="image/*" hidden><div class="portrait-actions"><button id="chooseLocationImage" type="button">Choisir une image</button><button id="removeLocationImage" type="button" hidden>Retirer</button></div></section>
+<section class="character-subsection"><div class="subsection-heading"><h2>Scènes dans ce lieu</h2></div><div id="locationScenes"></div></section>
+</form>
+</div></div></section>
+<section id="pv" hidden>
+<div class="character-toolbar"><div><strong>Power scaling</strong><span id="powerCharacterName"></span></div><div class="character-actions"><button id="addPowerStat" type="button">+ Statistique</button></div></div>
+<div class="character-layout power-layout">
+<aside class="character-list"><div id="powerCharacterList"></div></aside>
+<div class="character-editor power-editor">
+<p id="powerEmpty" class="em">Créez ou sélectionnez un personnage pour détailler ses statistiques.</p>
+<div id="powerPanel" hidden>
+<div class="subsection-heading"><div><h2 id="powerHeading"></h2><p class="character-note">Définissez un tier, puis détaillez les capacités et justifications pour ce personnage.</p></div></div>
+<div id="powerScalingStats"></div>
+</div>
+</div></div></section>
+<section id="seqv" hidden>
+<div class="sequencer-toolbar"><div><h1>Séquençage</h1><p class="character-note">Construis la progression narrative, puis relie chaque étape à une scène du scénario.</p></div><div class="sequencer-controls"><label for="sequenceTemplate">Structure</label><select id="sequenceTemplate"></select><button id="applySequenceTemplate">Charger le modèle</button><button id="addSequenceBeat">+ Étape</button></div></div>
+<div class="sequencer-summary"><span id="sequenceProgress">Aucune étape</span><span id="sequenceSceneCount"></span></div>
+<div id="sequenceBeats"></div>
+</section>
+<section id="arcv" hidden>
+<div class="character-toolbar"><div><strong>Arcs de personnages</strong><span id="arcCharacterCount"></span></div></div>
+<div class="character-layout arc-layout">
+<aside class="character-list"><div id="arcCharacterList"></div></aside>
+<div class="character-editor arc-editor">
+<p id="arcEmpty" class="em">Créez ou sélectionnez un personnage pour construire son arc.</p>
+<div id="arcPanel" hidden>
+<div class="arc-heading"><div><h1 id="arcHeading"></h1><p class="character-note">Décris le changement intérieur du personnage, du point de départ à l’état final.</p></div><label>Type d’arc<select id="arcType"><option value="positive">Positif / transformation</option><option value="negative">Négatif / chute</option><option value="flat">Stable / influence sur le monde</option><option value="redemption">Rédemption</option><option value="corruption">Corruption</option><option value="maturation">Maturation</option><option value="custom">Autre trajectoire</option></select></label></div>
+<div class="arc-fields">
+<label>État initial<textarea data-arc-field="startingState" rows="4" placeholder="Qui est-il au début ? Dans quelle situation vit-il ?"></textarea></label>
+<label>Blessure ou croyance de départ<textarea data-arc-field="startingBelief" rows="4" placeholder="Quelle idée fausse ou blessure guide ses choix ?"></textarea></label>
+<label>Désir extérieur<textarea data-arc-field="desire" rows="4" placeholder="Que pense-t-il vouloir obtenir ?"></textarea></label>
+<label>Besoin intérieur<textarea data-arc-field="need" rows="4" placeholder="De quoi a-t-il réellement besoin pour évoluer ?"></textarea></label>
+<label>Déclencheur<textarea data-arc-field="catalyst" rows="4" placeholder="Quel événement met son arc en mouvement ?"></textarea></label>
+<label>Premier tournant<textarea data-arc-field="firstTurningPoint" rows="4" placeholder="Quel choix l’engage dans une nouvelle direction ?"></textarea></label>
+<label>Point médian<textarea data-arc-field="midpoint" rows="4" placeholder="Quelle révélation ou décision change sa trajectoire ?"></textarea></label>
+<label>Crise / point le plus bas<textarea data-arc-field="crisis" rows="4" placeholder="Que risque-t-il de perdre ? Quelle croyance est mise à l’épreuve ?"></textarea></label>
+<label>Choix décisif / climax<textarea data-arc-field="climaxChoice" rows="4" placeholder="Quel choix prouve son évolution ou son échec ?"></textarea></label>
+<label>État final<textarea data-arc-field="endingState" rows="4" placeholder="Qui est-il à la fin ? Qu’est-ce qui a changé ?"></textarea></label>
+<label class="arc-wide">Résumé de l’arc<textarea data-arc-field="summary" rows="5" placeholder="Résume sa transformation en quelques phrases."></textarea></label>
+</div>
+</div>
+</div></div></section>
+<section id="chronov" hidden>
+<div class="timeline-toolbar">
+<div><h1>Chronologie</h1><p>Organise les événements de l’histoire sur une ou plusieurs frises.</p></div>
+<div class="timeline-controls"><label for="timelineSelect">Frise</label><select id="timelineSelect" aria-label="Frise active"></select><button id="addTimeline">+ Nouvelle frise</button><button id="addTimelineEvent">+ Événement</button></div>
+</div>
+<div id="timelineEmpty" class="timeline-empty" hidden><p>Crée une frise pour commencer à placer les événements.</p></div>
+<div id="timelineEditor" hidden>
+<div class="timeline-name-row"><label for="timelineName">Nom de la frise</label><input id="timelineName" type="text" placeholder="Ex. Chronologie principale"><button id="deleteTimeline" title="Supprimer cette frise">Supprimer</button></div>
+<div id="timelineSummary" class="timeline-summary"></div>
+<details class="timeline-tools" open><summary>Outils de la frise</summary>
+<div class="timeline-tools-row"><label>Ordre<select id="tlMode"><option value="story">Ordre de l’histoire</option><option value="narrative">Ordre du récit (selon les scènes)</option></select></label><label>Zoom<span class="tl-zoom"><button id="tlZoomOut" type="button" aria-label="Zoom arrière">−</button><span id="tlZoomLabel">100 %</span><button id="tlZoomIn" type="button" aria-label="Zoom avant">+</button></span></label><label>Aimantation<select id="tlSnap"><option value="0">Aucune</option><option value="50">5 %</option><option value="100">10 %</option><option value="250">25 %</option></select></label><label class="chart-check"><input id="tlCompact" type="checkbox"> Cartes compactes</label><button id="tlUndo" type="button" disabled>↶ Annuler</button><button id="tlRedo" type="button" disabled>↷ Rétablir</button><button id="tlFromScenes" type="button" title="Créer un événement pour chaque scène qui n’en a pas encore">Générer depuis les scènes</button><button id="tlExport" type="button">Exporter l’image (SVG)</button></div>
+<div class="timeline-tools-row"><strong>Échelle</strong><label>Unité<input id="tlUnit" type="text" list="chartUnits" placeholder="ex. jours (vide = aucune)"></label><label>Début<input id="tlMin" type="number" step="any"></label><label>Fin<input id="tlMax" type="number" step="any"></label><label>Format<select id="tlFormat"><option value="number">Nombre</option><option value="clock">Horloge (s, min, h)</option></select></label></div>
+<div class="timeline-tools-row"><strong>Filtres</strong><label>Personnage<select id="tlFilterChar"></select></label><label>Lieu<select id="tlFilterLoc"></select></label><label>Couleur<select id="tlFilterColor"></select></label><button id="tlFilterReset" type="button">Réinitialiser</button></div>
+<div class="timeline-tools-row"><strong>Périodes</strong><button id="tlAddPeriod" type="button">+ Période</button></div>
+<div id="tlPeriods"></div>
+</details>
+<div id="timelineTrack" class="timeline-track"></div>
+</div>
+</section>
+<section id="graphv" hidden>
+<div class="timeline-toolbar"><div><h1>Courbes</h1><p>Illustre la dynamique d’une scène ou de l’histoire avec un ou plusieurs graphiques.</p></div><div class="timeline-controls"><label for="chartSelect">Graphique</label><select id="chartSelect" aria-label="Graphique actif"></select><button id="addChart">+ Nouveau graphique</button></div></div>
+<div id="chartEmpty" class="timeline-empty" hidden><p>Crée un graphique pour commencer.</p></div>
+<div id="chartEditor" hidden>
+<div class="timeline-name-row"><label for="chartName">Nom du graphique</label><input id="chartName" type="text" placeholder="Ex. Tension de la scène 12"><button id="deleteChart" title="Supprimer ce graphique">Supprimer</button></div>
+<section id="timelineChart" class="timeline-chart">
+<div class="chart-head"><h2>Dynamique</h2><button id="addChartPoint" type="button">+ Point</button></div>
+<datalist id="chartUnits"><option value="s" label="Temps — secondes"><option value="min" label="Temps — minutes"><option value="h" label="Temps — heures"><option value="jours"><option value="semaines"><option value="mois"><option value="années"><option value="siècles"><option value="pages" label="Scénario — pages"><option value="scènes"><option value="plans"><option value="répliques"><option value="mots"><option value="%" label="Pourcentage"><option value="/10" label="Note sur 10"><option value="/100" label="Note sur 100"><option value="points"><option value="niveau"><option value="tier" label="Puissance — tier"><option value="PV" label="Points de vie"><option value="W" label="Puissance — watts"><option value="kW"><option value="MW"><option value="GW"><option value="ch" label="Puissance — chevaux"><option value="J" label="Énergie — joules"><option value="kJ"><option value="MJ"><option value="kg de TNT"><option value="tonnes de TNT"><option value="kilotonnes de TNT"><option value="mégatonnes de TNT"><option value="m" label="Distance — mètres"><option value="km"><option value="années-lumière"><option value="m/s" label="Vitesse"><option value="km/h"><option value="Mach"><option value="kg" label="Masse"><option value="tonnes"><option value="°C" label="Température"><option value="dB" label="Volume sonore"><option value="personnes"><option value="victimes"><option value="€" label="Argent"><option value="$"></datalist>
+<div class="chart-options"><label>Titre<input id="chartTitle" type="text" placeholder="Ex. Tension de la scène"></label><label>Abscisse<input id="chartXLabel" type="text" placeholder="Temps"></label><label>Unité X<input id="chartXUnit" type="text" list="chartUnits" placeholder="ex. s"></label><label>Min X<input id="chartXMin" type="number" step="any"></label><label>Max X<input id="chartXMax" type="number" step="any"></label><label>Pas X<input id="chartXStep" type="number" step="any" min="0" placeholder="auto" title="Intervalle entre deux graduations, par exemple 5 pour une graduation toutes les 5 minutes"></label><label>Format X<select id="chartXFormat" title="Horloge : s, min ou h affichés en m:ss ou h:mm:ss"><option value="number">Nombre</option><option value="clock">Horloge (s, min, h)</option></select></label><label>Ordonnée<input id="chartYLabel" type="text" placeholder="Intensité"></label><label>Unité Y<input id="chartYUnit" type="text" list="chartUnits" placeholder="ex. %"></label><label>Min Y<input id="chartYMin" type="number" step="any"></label><label>Max Y<input id="chartYMax" type="number" step="any"></label><label>Pas Y<input id="chartYStep" type="number" step="any" min="0" placeholder="auto" title="Intervalle entre deux graduations"></label><label>Format Y<select id="chartYFormat"><option value="number">Nombre</option><option value="clock">Horloge (s, min, h)</option></select></label></div>
+<div class="chart-options chart-series-options"><label>Courbe<select id="chartSeries"></select></label><label>Nom<input id="chartSeriesName" type="text"></label><label>Allure<select id="chartCurve"><option value="smooth">Courbe lissée</option><option value="linear">Lignes droites</option><option value="step">Escalier</option><option value="stepBefore">Escalier inversé</option><option value="easeIn">Démarrage lent</option><option value="easeOut">Arrivée douce</option><option value="sigmoid">Courbe en S</option><option value="peak">Pic</option><option value="valley">Creux</option><option value="points">Points seuls</option></select></label><label>Couleur<input id="chartColor" type="color"></label><label class="chart-check"><input id="chartArea" type="checkbox"> Aire remplie</label><button id="addChartSeries" type="button">+ Courbe</button><button id="deleteChartSeries" type="button">Supprimer la courbe</button></div>
+<svg id="chartSvg" class="chart-svg" viewBox="0 0 800 340" role="img" aria-label="Graphique"></svg>
+<p class="character-note">Glisse un point pour le déplacer. Chaque point représente un instant de l’histoire.</p>
+<div id="chartPoints"></div>
+</section>
+</div>
+</section>
+<section id="storyv" hidden>
+<div class="story-toolbar"><div><h1>Storyboard / Animatique</h1><p>Découpe le récit en plans, règle leur durée et lance un aperçu rythmé.</p></div><div class="story-actions"><button id="addStoryPanel">+ Case</button><button id="exportAnimatic">Exporter WebM</button></div></div>
+<div class="story-audio"><div class="story-audio-heading"><div><strong>Son de fond</strong><span id="storyAudioName">Aucun fichier audio</span></div><div class="story-audio-actions"><button id="importStoryAudio" type="button">Importer un son</button><button id="removeStoryAudio" type="button" hidden>Retirer</button><input id="storyAudioFile" type="file" accept="audio/*" hidden></div></div><audio id="storyAudio" controls loop preload="metadata" hidden></audio></div>
+<div class="animatic-player">
+<div class="animatic-stage"><img id="animaticImage" alt="Image de la case active" hidden><div id="animaticPlaceholder">Ajoute des cases au storyboard pour prévisualiser l’animatique.</div><div class="animatic-caption"><strong id="animaticTitle"></strong><span id="animaticTime"></span></div></div>
+<div class="animatic-progress"><div class="animatic-buttons"><button id="playAnimatic" class="on">▶ Lire</button><button id="stopAnimatic">■ Arrêter</button></div><div class="animatic-track"><input id="animaticScrubber" type="range" min="0" max="0" value="0" aria-label="Position de lecture de l’animatique"><div id="animaticMarkers" class="animatic-markers"></div></div><span id="animaticCounter">0 / 0</span><span id="animaticTotal">Durée totale : 0 s</span></div>
+</div>
+<div id="storyboardEmpty" class="timeline-empty">Aucune case pour le moment.</div>
+<div id="storyboardGrid" class="storyboard-grid"></div>
+</section>
+<script src="script.js"></script></body></html>
